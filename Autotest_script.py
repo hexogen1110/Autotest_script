@@ -6,10 +6,14 @@ import serial #pyserial module
 from ppadb.client import Client as AdbClient #refer: https://pypi.org/project/pure-python-adb/
 import paramiko #python ssh module
 
+#--------------
+# Definition
+#------------------------------------------------------------------------
 adb_hostname = "192.168.1.1"
 client = AdbClient(host="127.0.0.1", port=5037)
 pingstatus = False
 reboot_delay_sec = 60
+serial_port = "COM81"
 
 # Define status tuple
 status_tuple= (\
@@ -17,19 +21,45 @@ status_tuple= (\
 ["ipacm_time.txt", "dmesg | grep ipacm"],\
 ["ip_ne.txt", "ip ne"])
 
+# Object for config
+class conf: 
+    def __init__(self): 
+        self.reboot_method = ""
+        self.default_unlock = 0   
+
+#----------------
+# Sub Function
 #------------------------------------------------------------------------
 def get_config():
 	config = configparser.ConfigParser()
 	config.read('Config.ini')
-	reboot_ADB = config.get('Reboot method', 'ADB')
-	reboot_serial = config.get('Reboot method', 'serial')
-	reboot_SSH = config.get('Reboot method', 'SSH')
-	default_unlock = config.get('Misc', 'Default_unlock_device')
-
+	conf.reboot_method = config.get('Reboot method', 'reboot_method')
+	conf.default_unlock = config.get('Misc', 'Default_unlock_device')
+	
 def clean_log():
 	for ls in status_tuple:
 		if os.path.exists(ls[0]):
 			os.remove(ls[0])
+
+def serial_unlock_device():
+	com_port= serial.Serial(serial_port, baudrate = 115200,\
+	timeout=0, bytesize = 8, parity = 'N', stopbits = 1)
+	if com_port.isOpen():
+		try:
+			print(com_port.name+" is opened")
+			com_port.write("root\r\n")
+			time.sleep(1)
+			com_port.write("!@AskeyRtl0100vw\r\n")
+			time.sleep(1)
+			com_port.write("e2ptools -s UNLOCK -d 1 -m 0 -p rtl0108\r\n")
+			com_port.write("sync\r\n")
+			com_port.write("reboot\r\n")
+			print("unlock_device success and reboot now")			
+			ret = 0
+		except:
+			ret = 1
+	com_port.close()
+	return ret
 
 def ping_device():
 	err_count = 0
@@ -108,11 +138,22 @@ def reboot_device(type):
 			
 		if (err_count == 3):
 			break
+#----------------
+# Main Function			
 #------------------------------------------------------------------------
-
 if __name__ == '__main__':
+	# Initialization
+	reboot_method = ""
+	default_unlock = 0
 	clean_log()
 	get_config()
+	print("default_unlock {}".format(conf.default_unlock))
+	
+	# Unlock device ?
+	if (conf.default_unlock):
+		ret = serial_unlock_device()
+		if ret:
+			print ("Unlock fail!")
 #	for i in range(10000):
 #		print("================")
 #		print "[Iteration ",i,"]"
