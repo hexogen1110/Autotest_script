@@ -1,9 +1,10 @@
+import configparser
 import subprocess
 import os
 import time
 import serial #pyserial module
 from ppadb.client import Client as AdbClient #refer: https://pypi.org/project/pure-python-adb/
-import paramiko
+import paramiko #python ssh module
 
 adb_hostname = "192.168.1.1"
 client = AdbClient(host="127.0.0.1", port=5037)
@@ -17,6 +18,13 @@ status_tuple= (\
 ["ip_ne.txt", "ip ne"])
 
 #------------------------------------------------------------------------
+def get_config():
+	config = configparser.ConfigParser()
+	config.read('Config.ini')
+	reboot_ADB = config.get('Reboot method', 'ADB')
+	reboot_serial = config.get('Reboot method', 'serial')
+	reboot_SSH = config.get('Reboot method', 'SSH')
+	default_unlock = config.get('Misc', 'Default_unlock_device')
 
 def clean_log():
 	for ls in status_tuple:
@@ -104,23 +112,24 @@ def reboot_device(type):
 
 if __name__ == '__main__':
 	clean_log()
-	for i in range(10000):
-		print("================")
-		print "[Iteration ",i,"]"
-		print("-->Check network status")
-		pingstatus = ping_device()
-
-		if pingstatus is 1:
-			print("--->Ping available, reboot device")
-			#reboot_device("serial")
-			reboot_device("ssh")
-			print("--->reboot device done, waiting...")
-			time.sleep(reboot_delay_sec)
-			continue
-		else:
-			print("Network unavailable, may be a problem.")
-			raise SystemExit
-		print""
+	get_config()
+#	for i in range(10000):
+#		print("================")
+#		print "[Iteration ",i,"]"
+#		print("-->Check network status")
+#		pingstatus = ping_device()
+#
+#		if pingstatus is 1:
+#			print("--->Ping available, reboot device")
+#			#reboot_device("serial")
+#			reboot_device("ssh")
+#			print("--->reboot device done, waiting...")
+#			time.sleep(reboot_delay_sec)
+#			continue
+#		else:
+#			print("Network unavailable, may be a problem.")
+#			raise SystemExit
+#		print""
 	raise SystemExit
 
 
