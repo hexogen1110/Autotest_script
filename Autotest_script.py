@@ -12,7 +12,7 @@ from network import ping_device
 
 client = AdbClient(host="127.0.0.1", port=5037)
 pingstatus = False
-reboot_delay_sec = 60
+delay_sec = 60
 loop_count = 10000
 
 # Initialize object for config
@@ -24,6 +24,8 @@ class conf:
 		self.reboot_test = 0
 		self.led_test = 0
 		self.iperf_test = 0
+		self.enable_log_capture = 0
+		conf.enable_log = 0
 		
 #----------------
 # Sub Function
@@ -31,15 +33,17 @@ class conf:
 def get_config():
 	config = configparser.ConfigParser()
 	config.read('Config.ini')
-	# Reboot method
+# Reboot method
 	conf.reboot_method = config.get('Reboot method', 'reboot_method')
-	# Misc
+# Misc
 	conf.default_unlock = config.getboolean('Misc', 'default_unlock_device')
 	conf.platform = config.get('Misc', 'platform')
-	# Test item
+# Test item
 	conf.reboot_test = config.getboolean('Test item', 'reboot_test')
 	conf.led_test = config.getboolean('Test item', 'led_test')
 	conf.iperf_test = config.getboolean('Test item', 'iperf_test')
+# Log	
+	conf.enable_log = config.getboolean('Log', 'enable_log_capture')
 	
 def set_config(sect, item, value):
 	config = configparser.ConfigParser()
@@ -47,8 +51,6 @@ def set_config(sect, item, value):
 	config[sect][item] = value
 	with open('Config.ini', 'w') as configfile:
 		config.write(configfile)
-	
-
 
 def reboot_device(type):
 	err_count = 0
@@ -88,11 +90,13 @@ def reboot_device(type):
 if __name__ == '__main__':
 
 	# Initialization
-	clean_log()
+	clean_device_log()
 	get_config()
-	print("default_unlock {}".format(conf.default_unlock))
-	print("platform {}".format(conf.platform))
-	print("reboot_test={}".format(conf.reboot_test))	
+	print("[ Load config ]")
+	print(" unlock_device={}".format(conf.default_unlock))
+	print(" platform={}".format(conf.platform))
+	print(" reboot_test={}".format(conf.reboot_test))	
+	print(" enable_log_capture={}".format(conf.enable_log))	
 	
 	# Unlock device ?
 	if conf.default_unlock == 1:
@@ -105,11 +109,17 @@ if __name__ == '__main__':
 			set_config('Misc', 'default_unlock_device', "0")			
 			time.sleep(reboot_delay_sec)
 	
+	#----------------
 	# Main test area
+	#----------------
 	for i in range(loop_count):
 		print("================")
-		print "[Iteration ",i,"]"
+		print "[ Iteration ",i,"]"
 		
+		# LED test
+		if conf.led_test == 1:
+			print("--> LED test start...")	
+			
 		# Reboot test
 		if conf.reboot_test == 1:
 			print("--> Reboot test start...")
@@ -118,13 +128,19 @@ if __name__ == '__main__':
 			if status is 1:
 				print("---> Ping available, reboot device")
 				reboot_device(reboot_method)
-				print("--->reboot device done, waiting...")
-				time.sleep(reboot_delay_sec)
-			continue
-		else:
-			print("Network unavailable, may be a problem.")
-			raise SystemExit
-		print""
+				result = True
+			else:
+				print("Network unavailable, may be a problem.")
+				#raise SystemExit
+				result = False
+			print""
+				
+		# Save Log
+		if conf.enable_log == 1:
+			save_device_log(i)
+			#save_test_result(i,result)
+		# delay
+		time.sleep(delay_sec)	
 	raise SystemExit
 
 
