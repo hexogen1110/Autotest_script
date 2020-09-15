@@ -1,33 +1,26 @@
 import configparser
-import subprocess
-import os
-import time
 from ppadb.client import Client as AdbClient #refer: https://pypi.org/project/pure-python-adb/
 import paramiko #python ssh module
+
 from serial_func import *
+from sys_log import *
+from network import ping_device
 
 #--------------
 # Definition
 #------------------------------------------------------------------------
-adb_hostname = "192.168.1.1"
+
 client = AdbClient(host="127.0.0.1", port=5037)
 pingstatus = False
 reboot_delay_sec = 60
-serial_port = "COM81"
 loop_count = 10000
-
-# Define status tuple
-status_tuple= (\
-["ipa_hdr.txt", "cat /sys/kernel/debug/ipa/hdr;dmesg | grep name:"],\
-["ipacm_time.txt", "dmesg | grep ipacm"],\
-["ip_ne.txt", "ip ne"])
 
 # Initialize object for config
 class conf: 
     def __init__(self): 
-        self.reboot_method = ""
-        self.default_unlock = 0   
-        self.platform = ""   
+		self.reboot_method = ""
+		self.default_unlock = 0
+		self.platform = ""
 		self.reboot_test = 0
 		self.led_test = 0
 		self.iperf_test = 0
@@ -38,10 +31,15 @@ class conf:
 def get_config():
 	config = configparser.ConfigParser()
 	config.read('Config.ini')
+	# Reboot method
 	conf.reboot_method = config.get('Reboot method', 'reboot_method')
-	conf.default_unlock = config.get('Misc', 'default_unlock_device')
+	# Misc
+	conf.default_unlock = config.getboolean('Misc', 'default_unlock_device')
 	conf.platform = config.get('Misc', 'platform')
-	print("conf.default_unlock={}".format(conf.default_unlock))	
+	# Test item
+	conf.reboot_test = config.getboolean('Test item', 'reboot_test')
+	conf.led_test = config.getboolean('Test item', 'led_test')
+	conf.iperf_test = config.getboolean('Test item', 'iperf_test')
 	
 def set_config(sect, item, value):
 	config = configparser.ConfigParser()
@@ -50,42 +48,7 @@ def set_config(sect, item, value):
 	with open('Config.ini', 'w') as configfile:
 		config.write(configfile)
 	
-def clean_log():
-	for ls in status_tuple:
-		if os.path.exists(ls[0]):
-			os.remove(ls[0])
 
-def ping_device():
-	err_count = 0
-	print("Ping device...")	
-	while err_count < 9:
-		ping_command = "ping -n 2 " + adb_hostname
-		(output, error) = subprocess.Popen(ping_command,
-										stdout=subprocess.PIPE,
-										stderr=subprocess.PIPE,
-										shell=True).communicate()
-		if "TTL" in output:
-			print("ping available!")
-			return 1
-		else:
-			print("ping not available!")
-			err_count = err_count + 1
-		time.sleep(5)
-	#failed to ping
-	return 0
-
-def get_device_status(i):
-	print("--->Get device status")
-	device = client.device("192.168.1.1:5555")
-	
-	for ls in status_tuple:
-		print ("--->"+ls[0])
-		out = device.shell(ls[1])
-		f = open(ls[0], 'a')
-		buf = "iteration:" + str(i) + "\n"
-		f.write(buf)
-		f.write(out)
-		f.close()
 
 def reboot_device(type):
 	err_count = 0
@@ -127,12 +90,12 @@ if __name__ == '__main__':
 	# Initialization
 	clean_log()
 	get_config()
-
 	print("default_unlock {}".format(conf.default_unlock))
 	print("platform {}".format(conf.platform))
+	print("reboot_test={}".format(conf.reboot_test))	
 	
 	# Unlock device ?
-	if (conf.default_unlock):
+	if conf.default_unlock == 1:
 		ret = serial_unlock_device(conf.platform)
 		if ret:
 			print ("Unlock fail!")
@@ -141,24 +104,27 @@ if __name__ == '__main__':
 			# Set unlock bit to 0 to prevent unlock at everytime run this script
 			set_config('Misc', 'default_unlock_device', "0")			
 			time.sleep(reboot_delay_sec)
-			
+	
+	# Main test area
 	for i in range(loop_count):
 		print("================")
 		print "[Iteration ",i,"]"
-#		print("-->Check network status")
-#		pingstatus = ping_device()
-#
-#		if pingstatus is 1:
-#			print("--->Ping available, reboot device")
-		reboot_device("serial")
-#			reboot_device("ssh")
-#			print("--->reboot device done, waiting...")
-		time.sleep(reboot_delay_sec)
-#			continue
-#		else:
-#			print("Network unavailable, may be a problem.")
-#			raise SystemExit
-#		print""
+		
+		# Reboot test
+		if conf.reboot_test == 1:
+			print("--> Reboot test start...")
+			print("--> Check network status...")
+			status = ping_device(conf.platform)
+			if status is 1:
+				print("---> Ping available, reboot device")
+				reboot_device(reboot_method)
+				print("--->reboot device done, waiting...")
+				time.sleep(reboot_delay_sec)
+			continue
+		else:
+			print("Network unavailable, may be a problem.")
+			raise SystemExit
+		print""
 	raise SystemExit
 
 
