@@ -29,7 +29,8 @@ def save_device_log(current_count):
 	result = client.remote_connect("192.168.1.1", 5555)
 	device = client.device("192.168.1.1:5555")
 
-	os.makedirs(abs_file_path)
+	if not os.path.exists(abs_file_path):
+		os.makedirs(abs_file_path)
 
 	for ls in status_tuple:
 		print ("--->"+ls[0])
@@ -39,3 +40,14 @@ def save_device_log(current_count):
 		f.write(buf)
 		f.write(out)
 		f.close()
+		
+		
+def save_test_result(current_count, result):
+	if not os.path.exists(abs_file_path):
+		os.makedirs(abs_file_path)
+
+	f = open(abs_file_path+"\\test_result.log", 'a')
+	buf = "iteration:" + str(current_count) + ", test result:" + result + "\n"
+	print(buf)
+	f.write(buf)
+	f.close()

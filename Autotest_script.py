@@ -14,6 +14,7 @@ client = AdbClient(host="127.0.0.1", port=5037)
 pingstatus = False
 delay_sec = 60
 loop_count = 10000
+result = "empty"
 
 # Initialize object for config
 class conf: 
@@ -128,17 +129,16 @@ if __name__ == '__main__':
 			if status is 1:
 				print("---> Ping available, reboot device")
 				reboot_device(reboot_method)
-				result = True
+				result = "Pass"
 			else:
 				print("Network unavailable, may be a problem.")
-				#raise SystemExit
-				result = False
+				result = "Fail"
 			print""
 				
 		# Save Log
 		if conf.enable_log == 1:
 			save_device_log(i)
-			#save_test_result(i,result)
+			save_test_result(i,result)
 		# delay
 		time.sleep(delay_sec)	
 	raise SystemExit
