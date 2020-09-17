@@ -18,7 +18,7 @@ result = "empty"
 
 # Initialize object for config
 class conf: 
-    def __init__(self): 
+	def __init__(self):
 		self.reboot_method = ""
 		self.default_unlock = 0
 		self.platform = ""
@@ -115,7 +115,7 @@ if __name__ == '__main__':
 	#----------------
 	for i in range(loop_count):
 		print("================")
-		print "[ Iteration ",i,"]"
+		print("[ Iteration ",i,"]")
 		
 		# LED test
 		if conf.led_test == 1:
@@ -133,7 +133,7 @@ if __name__ == '__main__':
 			else:
 				print("Network unavailable, may be a problem.")
 				result = "Fail"
-			print""
+			print("")
 				
 		# Save Log
 		if conf.enable_log == 1:
